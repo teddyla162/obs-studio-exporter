@@ -1,0 +1,35 @@
+name: Windows Build
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21'
+      - name: Install OBS
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://cdn-fastly.obsproject.com/downloads/OBS-Studio-30.0.2-Full-Installer-x64.exe" -OutFile obs-studio-installer.exe
+          .\obs-studio-installer.exe /S | Out-Null
+      - name: Build
+        shell: pwsh
+        run: |
+          Copy-Item "C:\\Program Files\\obs-studio\\bin\\64bit\\obs.dll" -Destination "."
+          go build -buildmode=c-shared -o obs-studio-exporter.dll
+      - name: Archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: obs-studio-exporter-windows
+          path: obs-studio-exporter.dll
