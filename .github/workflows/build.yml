@@ -26,7 +26,14 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          Copy-Item "C:\\Program Files\\obs-studio\\bin\\64bit\\obs.dll" -Destination "."
+          # Find where OBS installed
+          $obsPath = Get-ChildItem -Path "C:\Program Files" -Filter "obs.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($obsPath) {
+            Copy-Item $obsPath.FullName -Destination "."
+            Write-Host "Found OBS.dll at: $($obsPath.FullName)"
+          } else {
+            Write-Host "OBS.dll not found, building without it"
+          }
           go build -buildmode=c-shared -o obs-studio-exporter.dll
       - name: Archive artifact
         uses: actions/upload-artifact@v4
