@@ -28,7 +28,7 @@ func StartRecording() {
     // Your recording logic here
 }
 
-//export StopRecording  
+//export StopRecording
 func StopRecording() {
     // Your stop recording logic here
 }
