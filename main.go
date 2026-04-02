@@ -4,14 +4,18 @@ import "C"
 
 //export Init
 func Init() {
-    // Plugin initialization
+    // Add your plugin initialization
 }
 
-//export GetName  
+//export GetName
 func GetName() *C.char {
-    return C.CString("OBS Exporter")
+    return C.CString("OBS Studio Exporter")
 }
 
-func main() {
-    // Required for c-shared build
+// Add more exported functions here
+//export StartExport
+func StartExport() {
+    // Your export logic
 }
+
+func main() {}
