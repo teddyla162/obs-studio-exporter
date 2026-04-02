@@ -6,6 +6,13 @@ import (
     "net/http"
 )
 
+// This is called automatically by OBS when the plugin loads
+//export obs_module_load
+func obs_module_load() C.bool {
+    go StartMetricsServer()
+    return C.bool(true)
+}
+
 //export Init
 func Init() {
     // Plugin initialization
@@ -40,7 +47,7 @@ func StartMetricsServer() {
         fmt.Fprintf(w, "# TYPE obs_bitrate_bytes_total counter\n")
         fmt.Fprintf(w, "obs_bitrate_bytes_total 0\n")
     })
-    go http.ListenAndServe(":9407", nil)
+    http.ListenAndServe(":9407", nil)
 }
 
 func main() {
