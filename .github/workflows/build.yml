@@ -1,42 +1,28 @@
-name: Windows Build
+name: Build Linux Binary
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
-  build-windows:
-    name: Windows
-    runs-on: windows-latest
+  build:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Install Go
+
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.21'
-      - name: Install OBS
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri "https://cdn-fastly.obsproject.com/downloads/OBS-Studio-30.0.2-Full-Installer-x64.exe" -OutFile obs-studio-installer.exe
-          .\obs-studio-installer.exe /S | Out-Null
+          go-version: '1.21'
+
+      - name: Dependencies
+        run: go mod tidy
+
       - name: Build
-        shell: pwsh
-        run: |
-          # Find where OBS installed
-          $obsPath = Get-ChildItem -Path "C:\Program Files" -Filter "obs.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($obsPath) {
-            Copy-Item $obsPath.FullName -Destination "."
-            Write-Host "Found OBS.dll at: $($obsPath.FullName)"
-          } else {
-            Write-Host "OBS.dll not found, building without it"
-          }
-          go build -buildmode=c-shared -o obs-studio-exporter.dll
-      - name: Archive artifact
+        run: GOOS=linux GOARCH=amd64 go build -o obs-exporter-linux
+
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: obs-studio-exporter-windows
-          path: obs-studio-exporter.dll
+          name: obs-exporter-binary
+          path: obs-exporter-linux
