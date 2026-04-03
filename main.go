@@ -1,55 +1,59 @@
 package main
 
-import "C"
 import (
-    "fmt"
-    "net/http"
-    "os"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
+	"://github.com"
+	"://github.com"
+	"://github.com/promhttp"
 )
 
-// This is called automatically by OBS when the plugin loads
-//export obs_module_load
-func obs_module_load() C.bool {
-    // Write to a log file so we can see if this runs
-    f, _ := os.Create("C:\\obs_plugin_debug.log")
-    f.WriteString("obs_module_load was called!\n")
-    f.Close()
-    
-    go StartMetricsServer()
-    return C.bool(true)
-}
+var (
+	streamingActive = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "obs_streaming_active",
+		Help: "1 if OBS is streaming, 0 otherwise",
+	})
+	obsFps = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "obs_fps",
+		Help: "Current FPS of OBS Studio",
+	})
+)
 
-//export Init
-func Init() {
-    // Plugin initialization
-}
+func main() {
+	prometheus.MustRegister(streamingActive, obsFps)
 
-//export GetName
-func GetName() *C.char {
-    return C.CString("OBS Studio Exporter")
-}
+	obsHost := os.Getenv("OBS_HOST")
+	obsPassword := os.Getenv("OBS_PASSWORD")
 
-//export StartRecording
-func StartRecording() {
-    // Your recording logic here
-}
+	if obsHost == "" {
+		obsHost = "172.16.10.197:4455"
+	}
 
-//export StopRecording
-func StopRecording() {
-    // Your stop recording logic here
-}
+	client, err := goobs.New(obsHost, goobs.WithPassword(obsPassword))
+	if err != nil {
+		log.Fatalf("Failed to connect to OBS: %v", err)
+	}
 
-//export StartMetricsServer
-func StartMetricsServer() {
-    http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Fprintf(w, "# HELP obs_frames_total Total frames\n")
-        fmt.Fprintf(w, "# TYPE obs_frames_total counter\n")
-        fmt.Fprintf(w, "obs_frames_total 0\n")
-        fmt.Fprintf(w, "# HELP obs_dropped_frames_total Dropped frames\n")
-        fmt.Fprintf(w, "# TYPE obs_dropped_frames_total counter\n")
-        fmt.Fprintf(w, "obs_dropped_frames_total 0\n")
-    })
-    http.ListenAndServe(":9407", nil)
-}
+	go func() {
+		for {
+			status, _ := client.Stream.GetStreamStatus()
+			if status != nil && status.OutputActive {
+				streamingActive.Set(1)
+			} else {
+				streamingActive.Set(0)
+			}
 
-func main() {}
+			stats, _ := client.General.GetStats()
+			if stats != nil {
+				obsFps.Set(stats.Fps)
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}()
+
+	http.Handle("/metrics", promhttp.Handler())
+	log.Fatal(http.ListenAndServe(":9407", nil))
+}
